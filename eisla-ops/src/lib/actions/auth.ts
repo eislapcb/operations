@@ -15,7 +15,7 @@ import {
   recordFailedAttempt,
   resetFailedAttempts,
 } from "@/lib/auth";
-import { createClient } from "@/lib/supabase/server";
+import { createClient, createServiceClient } from "@/lib/supabase/server";
 
 function getClientIp(hdrs: Headers): string | null {
   return (
@@ -101,7 +101,12 @@ export async function login(
 
   // If user doesn't exist in Supabase Auth yet (e.g. created with wrong keys), register them
   if (signInError) {
-    await supabase.auth.signUp({ email, password });
+    const admin = await createServiceClient();
+    await admin.auth.admin.createUser({
+      email,
+      password,
+      email_confirm: true,
+    });
     await supabase.auth.signInWithPassword({ email, password });
   }
 
@@ -166,9 +171,13 @@ export async function setupAdmin(
     passwordSetAt: new Date(),
   });
 
-  // Also create in Supabase Auth
-  const supabase = await createClient();
-  await supabase.auth.signUp({ email, password });
+  // Also create in Supabase Auth (admin API to skip email confirmation)
+  const admin = await createServiceClient();
+  await admin.auth.admin.createUser({
+    email,
+    password,
+    email_confirm: true,
+  });
 
   await writeAuditLog(null, `admin_account_created: ${email}`, ip);
 
