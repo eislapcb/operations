@@ -97,7 +97,13 @@ export async function login(
 
   // Sign into Supabase Auth session
   const supabase = await createClient();
-  await supabase.auth.signInWithPassword({ email, password });
+  const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
+
+  // If user doesn't exist in Supabase Auth yet (e.g. created with wrong keys), register them
+  if (signInError) {
+    await supabase.auth.signUp({ email, password });
+    await supabase.auth.signInWithPassword({ email, password });
+  }
 
   // Check if user must change password
   if (user.mustChangePw && user.mustChangePw !== "false") {
